@@ -45,6 +45,7 @@ for _, row in df.iterrows():
                 try:
                     author_id = author['authorId']
                     author_data = sch.get_author(author_id)
+                    time.sleep(0.5)
 
                     paper_count = len(author_data.papers) if author_data.papers else 0
 
