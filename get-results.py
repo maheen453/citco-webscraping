@@ -19,16 +19,8 @@ df["DG_Amount"] = df["Amount($)"].astype(str).str.replace(",", "").str.extract(r
 
 # set up semantic scholar client
 sch = SemanticScholar()
+author_cache = {}
 results = []
-
-# make sure field of study is computer science
-def is_computer_science_author(topics):
-    if not topics:
-        return False
-    for topic in topics:
-        if "computer science" in topic["topic"].lower():
-            return True
-    return False
 
 # query each researcher
 for _, row in df.iterrows():
@@ -38,30 +30,38 @@ for _, row in df.iterrows():
 
     try:
         # search for the author
-        author_matches = sch.search_author(name)
-        if not author_matches:
-            print(f"No match found for {name}")
-            continue
-
-        best_author = None
-        max_pubs = -1
-
-        for author in author_matches:
-            try:
-                author_id = author['authorId']
-                author_data = sch.get_author(author_id)
-
-                # If papers exist, check if this author has the most
-                paper_count = len(author_data.papers) if author_data.papers else 0
-
-                if paper_count > max_pubs:
-                    max_pubs = paper_count
-                    best_author = author_data
-                time.sleep(0.5)  # avoid rate limiting
-
-            except Exception as inner_e:
-                print(f"Error loading author data: {inner_e}")
+        if name in author_cache:
+            best_author = author_cache[name]
+        else:
+            author_matches = sch.search_author(name)
+            if not author_matches:
+                print(f"No match found for {name}")
                 continue
+
+            best_author = None
+            max_pubs = -1
+
+            for author in author_matches:
+                try:
+                    author_id = author['authorId']
+                    author_data = sch.get_author(author_id)
+
+                    paper_count = len(author_data.papers) if author_data.papers else 0
+
+                    if paper_count > max_pubs:
+                        max_pubs = paper_count
+                        best_author = author_data
+
+                except Exception as inner_e:
+                    print(f"Error loading author data: {inner_e}")
+                    continue
+
+            if best_author is None:
+                print(f"No valid author data for {name}")
+                continue
+
+            # save best author for this name
+            author_cache[name] = best_author
 
         # filter publications from 6 years before DG year
         start_year = dg_year - 6
