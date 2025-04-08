@@ -1,11 +1,11 @@
 # Citco Web Scraping Project
 
 ## Authors
-Maarya Siddiqui	501159595
-Maheen Qayyum	501202622
-Rida Zafar		501192233
-Riyan Kassam		501168357
-Tasnuva Sayed	501172437
+- Maarya Siddiqui	501159595
+- Maheen Qayyum	501202622
+- Rida Zafar		501192233
+- Riyan Kassam		501168357
+- Tasnuva Sayed	501172437
 
 ## 📌 Overview
 
