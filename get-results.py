@@ -51,6 +51,10 @@ if write_headers:
 # query each researcher
 for _, row in df.iterrows():
     name = row["Name"]
+    if name in processed_names:
+        print(f"Already processed {name}, skipping.")
+        continue
+
     search_name = normalize_name(name)
     dg_year = row["DG_Year"]
     dg_amount = row["DG_Amount"]
