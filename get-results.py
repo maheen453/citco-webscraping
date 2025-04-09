@@ -1,6 +1,22 @@
 import pandas as pd
 from semanticscholar import SemanticScholar
 import time
+import re
+import os
+import pickle
+import csv
+
+if os.path.exists("author_cache.pkl"):
+    with open("author_cache.pkl", "rb") as f:
+        author_cache = pickle.load(f)
+else:
+    author_cache = {}
+
+processed_names = set()
+csv_file = "citation_pubs.csv"
+if os.path.exists(csv_file):
+    existing_df = pd.read_csv(csv_file)
+    processed_names = set(existing_df["Name"].unique())
 
 xls_file = "NSERC_Results.xls"
 
@@ -19,23 +35,34 @@ df["DG_Amount"] = df["Amount($)"].astype(str).str.replace(",", "").str.extract(r
 
 # set up semantic scholar client
 sch = SemanticScholar()
-author_cache = {}
 results = []
+
+def normalize_name(name):
+    # add a space before capital letters that follow lowercase letters (e.g., DemkeBrown → Demke Brown)
+    return re.sub(r'(?<=[a-z])([A-Z])', r' \1', name).strip()
+
+write_headers = not os.path.exists(csv_file)
+csv_output = open(csv_file, "a", newline="", encoding="utf-8")
+csv_writer = csv.DictWriter(csv_output, fieldnames=["Name", "DG_Year", "DG_Amount", "Publications_6Yrs", "Citations_6Yrs"])
+if write_headers:
+    csv_writer.writeheader()
+
 
 # query each researcher
 for _, row in df.iterrows():
     name = row["Name"]
+    search_name = normalize_name(name)
     dg_year = row["DG_Year"]
     dg_amount = row["DG_Amount"]
 
     try:
-        # search for the author
-        if name in author_cache:
-            best_author = author_cache[name]
+        if search_name in author_cache:
+            print(f"Using cached data for {search_name}")
+            best_author = author_cache[search_name]
         else:
-            author_matches = sch.search_author(name)
+            author_matches = sch.search_author(search_name)
             if not author_matches:
-                print(f"No match found for {name}")
+                print(f"No match found for {search_name}")
                 continue
 
             best_author = None
@@ -61,8 +88,11 @@ for _, row in df.iterrows():
                 print(f"No valid author data for {name}")
                 continue
 
-            # save best author for this name
-            author_cache[name] = best_author
+            # save to cache immediately
+            author_cache[search_name] = best_author
+            with open("author_cache.pkl", "wb") as f:
+                pickle.dump(author_cache, f)
+            print(f"Cached and saved author data for {search_name}")
 
         # filter publications from 6 years before DG year
         start_year = dg_year - 6
@@ -77,14 +107,15 @@ for _, row in df.iterrows():
                 pub_count += 1
                 citation_total += paper.citationCount
 
-        results.append({
+        result_row = {
             "Name": name,
             "DG_Year": dg_year,
             "DG_Amount": dg_amount,
             "Publications_6Yrs": pub_count,
             "Citations_6Yrs": citation_total,
-            
-        })
+        }
+        csv_writer.writerow(result_row)
+        csv_output.flush() 
 
         print(f"{name}: {pub_count} pubs, {citation_total} citations")
         time.sleep(1)  # pause to avoid rate limiting
@@ -94,6 +125,6 @@ for _, row in df.iterrows():
         continue
 
 # save to csv for statistical tests
-out_df = pd.DataFrame(results)
-out_df.to_csv("citation_pubs", index=False)
-print("Saved results to citation_pubs.csv")
+csv_output.close()
+print("Done! All data saved to citation_pubs.csv")
+
