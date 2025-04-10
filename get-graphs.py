@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import linregress
+# Author - msiddiqui
 
 # Store citation_pubs.csv into dataframes sorted in ascending order of publication counts
 df = pd.read_csv('citation_pubs.csv', quotechar='"', on_bad_lines='skip', engine='python')
